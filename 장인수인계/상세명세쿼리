@@ -1,0 +1,51 @@
+i.,EXEC :IN_DMD_NO := '2024020050';
+EXEC :IN_DMD_ACPT_NO := '4191479';
+EXEC :IN_SR_NUM := '0';
+
+
+
+
+SELECT   BAT.DMD_NO
+        ,   BAT.DTST_SEQ
+        ,   BAT.PT_NO
+        ,   BAT.PT_NM
+        ,   NVL(REQ.SS_TOTMY,    BAT.SCRG_MTCS_AMT)      SS_TOTMY       /*           총진료비                   */
+        ,   NVL(REQ.SS_OWPYMY,   BAT.SCRG_PBDN_AMT)    SS_OWPYMY       /*           본인부담금                 */
+        ,   NVL(REQ.SS_UPPERMY, BAT.SCRG_PBDN_HGLM_AMT)  SS_UPPERMY       /*           본인부담상환초과금         */
+        ,   NVL(REQ.SS_INPMY,    BAT.SCRG_ABDN_AMT)     SS_INPMY       /*           보험자부담금(조합부담금)   */
+        ,   NVL(REQ.SS_BAKUDR_TOTMY , BAT.SCRG_SEPAD_WHL_MED_AMT)   SS_BAKUDR_TOTMY         /*        선별   총진료비                   */
+        ,   NVL(REQ.SS_BAKUDR_OWPYMY, BAT.SCRG_SEPAD_PBDN_AMT)        SS_BAKUDR_OWPYMY           /*          선별 본인부담금                 */
+        ,   NVL(REQ.SS_BAKUDR_INPMY, BAT.SCRG_SEPAD_DMD_AMT)             SS_BAKUDR_INPMY             /* 선별 청구액 */
+        ,   to_number(REQ.OW_RNMY)                            OW_RNMY      /* 본인부담환급금                       */
+        ,   to_number(REQ.OW_ADDMY)                           OW_ADDMY      /* 본인부담추가금액                     */
+        ,   NVL(REQ.TR_PYMNY, NVL(REQ.SS_INPMY,    BAT.SCRG_ABDN_AMT))    TR_PYMNY    /* 실지급결정금액     */
+        ,   BAT.SCRG_MTCS_AMT                            SCRG_MTCS_AMT      /* 총진료비                             */
+        ,   BAT.SCRG_PBDN_AMT                          SCRG_PBDN_AMT      /* 본인부담금                           */
+        ,   BAT.SCRG_PBDN_HGLM_AMT                        SCRG_PBDN_HGLM_AMT      /* 본인부담상한초과금                   */
+        ,   BAT.SCRG_ABDN_AMT                           SCRG_ABDN_AMT      /* 청구액(조합부담금)                   */
+        ,   BAT.SCRG_SEPAD_WHL_MED_AMT   SCRG_SEPAD_WHL_MED_AMT         /*        선별   총진료비                   */
+        ,   BAT.SCRG_SEPAD_PBDN_AMT         SCRG_SEPAD_PBDN_AMT          /*          선별 본인부담금                 */
+        ,   BAT.SCRG_SEPAD_DMD_AMT          SCRG_SEPAD_DMD_AMT                /* 선별 청구액 */
+     FROM (
+            SELECT  A.*
+              FROM  AIMIPBAM A
+             WHERE  A.DMD_ACPT_NO= :IN_DMD_ACPT_NO
+               AND A.DMD_NO = :IN_DMD_NO
+               AND  NOT EXISTS( SELECT  *
+                                    FROM  AIF0202T T
+                                   WHERE  T.SR_NUM   = :IN_SR_NUM
+                                     AND T.DMD_NO = :IN_DMD_NO
+                                      AND T.ACPTNO   = :IN_DMD_ACPT_NO
+                                      AND T.TR_PYMNY = 0
+                                      AND T.SS_INPMY = 0
+                                      AND T.SS_TOTMY = 0
+                                      AND T.TR_PYMNY = 0
+                                      AND T.MF_ADJMY = 0
+                                      AND T.BF_ADJMY = 0
+                                      AND T.LST_SEQ  = A.DTST_SEQ )
+            ) BAT
+         ,  AIF0202T REQ
+    WHERE  REQ.DMD_NO  (+)= BAT.DMD_NO
+       AND REQ.ACPTNO  (+)= BAT.DMD_ACPT_NO
+       AND REQ.LST_SEQ (+)= BAT.DTST_SEQ
+   ORDER BY BAT.DTST_SEQ

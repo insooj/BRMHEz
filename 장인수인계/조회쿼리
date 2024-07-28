@@ -1,0 +1,482 @@
+EXEC :IN_DMD_NO := '2024040016';
+EXEC :IN_DMD_ACPT_NO := '4325503';
+
+SELECT *
+  FROM (
+
+SELECT ROW_NUMBER() OVER(PARTITION BY AA.SR_NUM ,AA.SEQNO ORDER BY  AA.SR_NUM) SEQ  -- SEQNO 중복건 제거
+           ,  AA.*
+  FROM (
+
+SELECT
+        B.SR_NUM
+       ,A.RCPFLG
+       ,A.RCPFLGNM
+       ,A.SEQNO
+       ,A.RCPDATE
+       ,A.RCPAMT
+       ,A.RCP_SR_NUM
+       ,MAX(AP_DTE)  AP_DTE
+       ,MAX(DMD_CNT)  DMD_CNT
+       ,MAX(INPMY)   INPMY
+       ,MAX(UPPERREQ)  UPPERREQ
+       ,MAX(SUPPMY_H)  SUPPMY_H
+       ,MAX(SUPPMY_L)  SUPPMY_L
+       ,MAX(NTC_DTE)  NTC_DTE
+       ,MAX(SS_CNT)  SS_CNT
+       ,MAX(TR_PYMNY)  TR_PYMNY
+       ,MAX(SS_UPPERREQ)  SS_UPPERREQ
+       ,MAX(SS_SUPPMY)  SS_SUPPMY
+       ,MAX(REM)            REM
+       ,MAX(TR_PYMNY_CHA) TR_PYMNY_CHA
+	  	 ,B.DMD_NO
+	  	 ,B.DMD_ACPT_NO
+        ,   B.PT_NO                                         PT_NO                              -- 환자번호
+        ,   B.PT_NM                                        	PT_NM                               -- 환자명
+        ,   B.MED_YM                                        MED_YM                              -- 진료년월
+        ,   B.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   B.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   B.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   B.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+FROM
+(
+   SELECT   '3'                                            GUBUN
+        ,   A.DSCR_DGR_NO                                  SR_NUM
+        ,   A.DMD_UNCL_DRT_AMT_TP_CD                       RCPFLG
+        ,   XCOM.FT_CCC_CODENAME('BIL065',A.DMD_UNCL_DRT_AMT_TP_CD)
+                                                           RCPFLGNM
+        ,   TO_CHAR(A.PAY_DT,'YYYY-MM-DD')                 RCPDATE
+        ,   A.RLPY_AMT                                       RCPAMT
+        ,   A.DSCR_DGR_NO                                  RCP_SR_NUM
+        ,   A.RMK_CNTE                                     REM
+        ,   A.UNCL_INAM_SEQ                                 SEQNO
+        ,   B.DMD_NO                                        DMD_NO
+        ,   B.PT_NO                                         PT_NO                              -- 환자번호
+        ,   B.PT_NM                                       	PT_NM                               -- 환자명
+        ,   B.MED_YM                                        MED_YM                              -- 진료년월
+        ,   B.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   B.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   B.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   B.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+     FROM  AIMIPURD A
+     		,  AIMIPBAM B
+    WHERE  A.DMD_ACPT_NO          = :IN_DMD_ACPT_NO
+      AND  A.DMD_NO               = :IN_DMD_NO
+      AND  A.DMD_NO								= B.DMD_NO (+)
+      AND  A.DSCR_DGR_NO != '0'
+      AND  NVL(A.IRD_YN,'N') = 'N'
+   ) A,
+   (
+   SELECT
+           '1'                                            GUBUN
+        ,  TO_CHAR(A.DMD_ACPT_DT,'YYYY-MM-DD')                 AP_DTE
+        ,  A.SCRG_DMD_NOC                            DMD_CNT
+        ,  A.SCRG_ABDN_AMT + A.SCRG_PYAC_AMT + A.SCRG_SEPAD_DMD_AMT     INPMY
+        ,  NVL(A.SCRG_PBDN_HGLM_AMT,0)                  UPPERREQ
+        ,  NVL(A.SCRG_RRNS_HGLM_DFAMT_SUP_AMT,0)                  SUPPMY_H
+        ,  NVL(A.SCRG_TB_HGLM_DFAMT_SUP_AMT,0)           			 SUPPMY_L
+        ,  NULL                                           NTC_DTE
+        ,  B.SR_NUM                                 SR_NUM
+        ,  NULL                                           SS_CNT
+        ,  NULL                                           TR_PYMNY
+        ,  NULL                                           SS_UPPERREQ
+        ,  NULL                                           SS_SUPPMY
+        ,  B.SR_NUM                                   RCP_SR_NUM
+        ,  null TR_PYMNY_CHA
+        ,   C.DMD_NO                                        DMD_NO
+        ,   C.DMD_ACPT_NO                                   DMD_ACPT_NO
+        ,   C.PT_NO                                         PT_NO                              -- 환자번호
+        ,   C.PT_NM                                       	PT_NM                               -- 환자명
+        ,   C.MED_YM                                        MED_YM                              -- 진료년월
+        ,   C.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   C.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   C.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   C.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+     FROM  AIMIPRQS A
+        ,  AIF0204T B
+        ,  AIMIPBAM C
+    WHERE  A.DMD_ACPT_NO = :IN_DMD_ACPT_NO
+      AND  A.DMD_NO      = :IN_DMD_NO
+      AND  B.ACPTNO(+) = A.DMD_ACPT_NO
+      AND  B.DMD_NO(+) = A.DMD_NO
+      AND  A.DMD_ACPT_NO = C.DMD_ACPT_NO
+      AND  A.DMD_NO = C.DMD_NO
+    GROUP  BY
+           TO_CHAR(A.DMD_ACPT_DT,'YYYY-MM-DD')
+        ,  A.SCRG_DMD_NOC
+        ,  A.SCRG_ABDN_AMT + A.SCRG_PYAC_AMT + A.SCRG_SEPAD_DMD_AMT
+        ,  NVL(A.SCRG_PBDN_HGLM_AMT,0)
+        ,  NVL(A.SCRG_RRNS_HGLM_DFAMT_SUP_AMT,0)
+        ,  NVL(A.SCRG_TB_HGLM_DFAMT_SUP_AMT,0)
+        ,  B.SR_NUM
+        ,  B.RQ_TRQMY + B.RQ_BAKUDR_INPMY_TOT - B.SS_AIN_TAMY - B.SS_TR_PYTMY - B.SS_SF_ADDTMY
+        ,  C.DMD_NO
+        ,  C.DMD_ACPT_NO
+        ,  C.PT_NO
+        ,  C.PT_NM
+        ,  C.MED_YM
+        ,  C.HIRA_MTFL_CD
+        ,  C.PME_CLS_CD
+        ,  C.HIRA_MED_SBJT_CD
+        ,   C.DTST_SEQ
+    UNION  ALL
+   SELECT   '2'                                            GUBUN
+        ,   NULL                                           AP_DTE
+        ,   NULL                                           DMD_CNT
+        ,   NULL                                           INPMY
+        ,   NULL                                           UPPERREQ
+        ,   NULL                                           SUPPMY_H
+        ,   NULL					         SUPPMY_L
+        ,   TO_CHAR(MIN(B.NTC_DTE),'YYYY-MM-DD')           NTC_DTE
+        ,   A.SR_NUM                                       SR_NUM
+        ,   A.SS_TCNT                                 SS_CNT
+        ,   A.SS_TR_PYTMY + case when a.dmd_no like '%D%' AND A.SR_NUM < '20170501' then nvl(a.SS_BAKUDR_INPMY_TOT,0) else 0 end    TR_PYMNY  --2017.02.21 오세란 요청으로 100/100금액추가. DRG만 그렇다고 함.
+        ,   NVL(A.SS_UPPERMY,0)                  SS_UPPERREQ
+        ,   NVL(A.SS_SUPPMY,0)                        SS_SUPPMY
+        ,   A.SR_NUM                                       RCP_SR_NUM
+        ,   C.DMD_NO																				DMD_NO
+        ,   C.DMD_ACPT_NO                                   DMD_ACPT_NO
+        ,  null TR_PYMNY_CHA
+        ,   C.PT_NO                                         PT_NO                              -- 환자번호
+        ,   C.PT_NM                                       	PT_NM                               -- 환자명
+        ,   C.MED_YM                                        MED_YM                              -- 진료년월
+        ,   C.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   C.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   C.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   C.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+    FROM   AIF0204T A
+        ,  AIF0201T B
+        ,  AIMIPBAM C
+    WHERE  A.ACPTNO    = :IN_DMD_ACPT_NO
+      AND  A.DMD_NO    = :IN_DMD_NO
+      AND  B.SR_NUM(+) = A.SR_NUM
+      AND  C.DMD_NO    = A.DMD_NO
+      AND  C.DMD_NO    = B.DMD_NO
+    GROUP  BY
+           A.SR_NUM
+        ,  A.SS_TCNT
+        ,  A.SS_TR_PYTMY + case when a.dmd_no like '%D%' AND A.SR_NUM < '20170501' then nvl(a.SS_BAKUDR_INPMY_TOT,0) else 0 end --2017.02.21 오세란 요청으로 100/100금액추가. DRG만 그렇다고 함.
+        ,  A.SS_UPPERMY
+        ,  A.SS_SUPPMY
+        ,  A.RQ_TRQMY + A.RQ_BAKUDR_INPMY_TOT - A.SS_AIN_TAMY - A.SS_TR_PYTMY - A.SS_SF_ADDTMY
+        ,  C.DMD_NO
+        ,  C.DMD_ACPT_NO
+        ,  C.PT_NO
+        ,  C.PT_NM
+        ,  C.MED_YM
+        ,  C.HIRA_MTFL_CD
+        ,  C.PME_CLS_CD
+        ,  C.HIRA_MED_SBJT_CD
+        ,  C.DTST_SEQ
+   ) B
+WHERE (A.SR_NUM(+) = B.SR_NUM AND A.RCPAMT = B.TR_PYMNY)
+GROUP BY
+        B.SR_NUM
+       ,A.RCPFLG
+       ,A.RCPFLGNM
+       ,A.SEQNO
+       ,A.RCPDATE
+       ,A.RCPAMT
+       ,A.RCP_SR_NUM
+       ,A.REM
+	     ,B.DMD_NO
+	     ,B.DMD_ACPT_NO
+        ,  B.PT_NO
+        ,  B.PT_NM
+        ,  B.MED_YM
+        ,  B.HIRA_MTFL_CD
+        ,  B.PME_CLS_CD
+        ,  B.HIRA_MED_SBJT_CD
+        ,   B.DTST_SEQ
+UNION ALL
+
+SELECT *
+  FROM (
+SELECT
+		        B.SR_NUM
+		       ,A.RCPFLG
+		       ,A.RCPFLGNM
+		       ,A.SEQNO
+		       ,A.RCPDATE
+		       ,A.RCPAMT
+		       ,A.RCP_SR_NUM
+		       ,MAX(AP_DTE)  AP_DTE
+		       ,MAX(DMD_CNT)  DMD_CNT
+		       ,MAX(INPMY)   INPMY
+		       ,MAX(UPPERREQ)  UPPERREQ
+		       ,MAX(SUPPMY_H)  SUPPMY_H
+		       ,MAX(SUPPMY_L)  SUPPMY_L
+		       ,MAX(NTC_DTE)  NTC_DTE
+		       ,MAX(SS_CNT)  SS_CNT
+		       ,MAX(TR_PYMNY)  TR_PYMNY
+		       ,MAX(SS_UPPERREQ)  SS_UPPERREQ
+		       ,MAX(SS_SUPPMY)  SS_SUPPMY
+		       ,MAX(REM)            REM
+		       ,MAX(TR_PYMNY_CHA) TR_PYMNY_CHA
+		       ,B.DMD_ACPT_NO
+		       ,B.DMD_NO
+           ,  B.PT_NO
+           ,  B.PT_NM
+           ,  B.MED_YM
+           ,  B.HIRA_MTFL_CD
+           ,  B.PME_CLS_CD
+           ,  B.HIRA_MED_SBJT_CD
+           ,   B.DTST_SEQ
+		FROM
+		(
+		     SELECT   '3'                                            GUBUN
+		        ,   A.DSCR_DGR_NO                                  SR_NUM
+		        ,   A.DMD_UNCL_DRT_AMT_TP_CD                       RCPFLG
+		        ,   XCOM.FT_CCC_CODENAME('BIL065',A.DMD_UNCL_DRT_AMT_TP_CD)
+		                                                           RCPFLGNM
+		        ,   TO_CHAR(A.PAY_DT,'YYYY-MM-DD')                 RCPDATE
+		        ,   A.RLPY_AMT                                       RCPAMT
+		        ,   A.DSCR_DGR_NO                                  RCP_SR_NUM
+		        ,   A.RMK_CNTE                                     REM
+		        ,   A.UNCL_INAM_SEQ                              SEQNO
+		        ,   A.DMD_NO                                       DMD_NO
+		        ,   A.DMD_ACPT_NO                                  DMD_ACPT_NO
+       	  	 ,  B.PT_NO                                         PT_NO                              -- 환자번호
+      		  ,   B.PT_NM                                       	PT_NM                               -- 환자명
+      		  ,   B.MED_YM                                        MED_YM                              -- 진료년월
+      		  ,   B.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+      		  ,   B.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+      	  ,   B.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+      	  ,   B.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+		 	   FROM  AIMIPURD A
+		        ,  AIMIPBAM B
+		    WHERE  A.DMD_ACPT_NO          = :IN_DMD_ACPT_NO
+		      AND  A.DMD_NO    = :IN_DMD_NO
+		      AND A.DSCR_DGR_NO != '0'
+		      AND  NVL(A.IRD_YN,'N') = 'N'
+		      AND  A.DMD_NO = B.DMD_NO(+)
+		      AND  A.DMD_ACPT_NO = B.DMD_ACPT_NO(+)
+
+		   ) A,
+		   (
+		 SELECT
+		           '1'                                            GUBUN
+		        ,  TO_CHAR(A.DMD_ACPT_DT,'YYYY-MM-DD')            AP_DTE
+		        ,  A.SCRG_DMD_NOC                                 DMD_CNT
+		        ,  A.SCRG_ABDN_AMT + A.SCRG_PYAC_AMT + A.SCRG_SEPAD_DMD_AMT     INPMY
+		        ,  NVL(A.SCRG_PBDN_HGLM_AMT,0)                    UPPERREQ
+		        ,  NVL(A.SCRG_RRNS_HGLM_DFAMT_SUP_AMT,0)          SUPPMY_H
+		        ,  NVL(A.SCRG_TB_HGLM_DFAMT_SUP_AMT,0)           	SUPPMY_L
+		        ,  NULL                                           NTC_DTE
+		        ,  B.SR_NUM                                       SR_NUM
+		        ,  NULL                                           SS_CNT
+		        ,  NULL                                           TR_PYMNY
+		        ,  NULL                                           SS_UPPERREQ
+		        ,  NULL                                           SS_SUPPMY
+		        ,  B.SR_NUM                                       RCP_SR_NUM
+		        ,  null TR_PYMNY_CHA
+		        ,  A.DMD_NO                                       DMD_NO
+		        ,  A.DMD_ACPT_NO                                  DMD_ACPT_NO
+        ,   C.PT_NO                                         PT_NO                              -- 환자번호
+        ,   C.PT_NM                                       	PT_NM                               -- 환자명
+        ,   C.MED_YM                                        MED_YM                              -- 진료년월
+        ,   C.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   C.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   C.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   C.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+		     FROM  AIMIPRQS A
+		        ,  AIF0204T B
+				        ,  AIMIPBAM C
+		    WHERE  A.DMD_ACPT_NO = :IN_DMD_ACPT_NO
+		      AND  A.DMD_NO      = :IN_DMD_NO
+		      AND  B.ACPTNO(+) = A.DMD_ACPT_NO
+		      AND  B.DMD_NO(+) = A.DMD_NO
+		      AND  A.DMD_NO    = C.DMD_NO
+		      AND  A.DMD_ACPT_NO = C.DMD_ACPT_NO
+		    GROUP  BY
+		           TO_CHAR(A.DMD_ACPT_DT,'YYYY-MM-DD')
+		        ,  A.SCRG_DMD_NOC
+		        ,  A.SCRG_ABDN_AMT + A.SCRG_PYAC_AMT + A.SCRG_SEPAD_DMD_AMT
+		        ,  NVL(A.SCRG_PBDN_HGLM_AMT,0)
+		        ,  NVL(A.SCRG_RRNS_HGLM_DFAMT_SUP_AMT,0)
+		        ,  NVL(A.SCRG_TB_HGLM_DFAMT_SUP_AMT,0)
+		        ,  B.SR_NUM
+		        ,  B.RQ_TRQMY + B.RQ_BAKUDR_INPMY_TOT - B.SS_AIN_TAMY - B.SS_TR_PYTMY - B.SS_SF_ADDTMY
+		        ,  A.DMD_NO
+		        ,  A.DMD_ACPT_NO
+		          ,  C.PT_NO
+        ,  C.PT_NM
+        ,  C.MED_YM
+        ,  C.HIRA_MTFL_CD
+        ,  C.PME_CLS_CD
+        ,  C.HIRA_MED_SBJT_CD
+        ,   C.DTST_SEQ
+		    UNION  ALL
+		   SELECT   '2'                                            GUBUN
+		        ,   NULL                                           AP_DTE
+		        ,   NULL                                           DMD_CNT
+		        ,   NULL                                           INPMY
+		        ,   NULL                                           UPPERREQ
+		        ,   NULL                                           SUPPMY_H
+		        ,   NULL					         SUPPMY_L
+		        ,   TO_CHAR(MIN(B.NTC_DTE),'YYYY-MM-DD')           NTC_DTE
+		        ,   A.SR_NUM                                       SR_NUM
+		        ,   A.SS_TCNT                                 SS_CNT
+		        ,   A.SS_TR_PYTMY + case when a.dmd_no like '%D%' AND A.SR_NUM < '20170501' then nvl(a.SS_BAKUDR_INPMY_TOT,0) else 0 end    TR_PYMNY  --2017.02.21 오세란 요청으로 100/100금액추가. DRG만 그렇다고 함.
+		--        ,   A.SS_TR_PYTMY    TR_PYMNY
+		        ,   NVL(A.SS_UPPERMY,0)                  SS_UPPERREQ
+		        ,   NVL(A.SS_SUPPMY,0)                        SS_SUPPMY
+		        ,   A.SR_NUM                                       RCP_SR_NUM
+		        ,  null TR_PYMNY_CHA
+		        ,   A.DMD_NO                                          DMD_NO
+		        ,   A.ACPTNO                                         DMD_ACPT_NO
+		        ,   C.PT_NO                                         PT_NO                              -- 환자번호
+        ,   C.PT_NM                                      	PT_NM                               -- 환자명
+        ,   C.MED_YM                                        MED_YM                              -- 진료년월
+        ,   C.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   C.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   C.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   C.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+		     FROM  AIF0204T A
+		        ,  AIF0201T B
+		        ,  AIMIPBAM C
+		    WHERE  A.ACPTNO    = :IN_DMD_ACPT_NO
+		      AND  A.DMD_NO    = :IN_DMD_NO
+		      AND  B.SR_NUM(+) = A.SR_NUM
+		      AND  A.ACPTNO = C.DMD_ACPT_NO
+		      AND  A.DMD_NO = C.DMD_NO
+		      AND  B.DMD_NO = C.DMD_NO
+		      AND  B.ACPTNO  = C.DMD_ACPT_NO
+		    GROUP  BY
+		           A.SR_NUM
+		        ,  A.SS_TCNT
+		        ,   A.SS_TR_PYTMY + case when a.dmd_no like '%D%' AND A.SR_NUM < '20170501' then nvl(a.SS_BAKUDR_INPMY_TOT,0) else 0 end --2017.02.21 오세란 요청으로 100/100금액추가. DRG만 그렇다고 함.
+		--        ,   A.SS_TR_PYTMY
+		        ,  A.SS_UPPERMY
+		        ,  A.SS_SUPPMY
+		        ,  A.RQ_TRQMY + A.RQ_BAKUDR_INPMY_TOT - A.SS_AIN_TAMY - A.SS_TR_PYTMY - A.SS_SF_ADDTMY
+		        ,  A.DMD_NO
+		        ,  A.ACPTNO
+  		    	,  C.PT_NO                                                                      -- 환자번호
+            ,   C.PT_NM                                                                   -- 환자명
+            ,   C.MED_YM                                                                      -- 진료년월
+            ,   C.HIRA_MTFL_CD                                                          -- 심평원진료분야코드
+            ,   C.PME_CLS_CD                                                              -- 환자급종유형코드
+            ,   C.HIRA_MED_SBJT_CD                                                 -- 심평원진료과목코드
+            ,   C.DTST_SEQ
+		   ) B
+		WHERE A.SR_NUM(+) = B.SR_NUM
+		GROUP BY
+		        B.SR_NUM
+		       ,A.RCPFLG
+		       ,A.RCPFLGNM
+		       ,A.SEQNO
+		       ,A.RCPDATE
+		       ,A.RCPAMT
+		       ,A.RCP_SR_NUM
+		       ,A.REM
+		       ,B.DMD_NO
+		       ,B.DMD_ACPT_NO
+		       ,B.PT_NO
+         ,  B.PT_NM                                                                   -- 환자명
+        ,   B.MED_YM                                                                      -- 진료년월
+        ,   B.HIRA_MTFL_CD                                                          -- 심평원진료분야코드
+        ,   B.PME_CLS_CD                                                              -- 환자급종유형코드
+        ,   B.HIRA_MED_SBJT_CD
+        ,   B.DTST_SEQ                                                               -- 명일련번호 / 명세서순번
+		)
+WHERE SS_SUPPMY != 0 OR RCPFLG IS NULL OR RCPAMT != TR_PYMNY
+
+
+UNION ALL
+
+SELECT NULL SR_NUM
+       ,A.RCPFLG
+       ,A.RCPFLGNM
+       ,A.SEQNO
+       ,A.RCPDATE
+       ,A.RCPAMT
+       ,A.RCP_SR_NUM
+       ,B.AP_DTE
+       ,B.DMD_CNT
+       ,B.INPMY
+       ,B.UPPERREQ
+       ,B.SUPPMY_H
+       ,B.SUPPMY_L
+       ,NULL  NTC_DTE
+       ,NULL  SS_CNT
+       ,NULL  TR_PYMNY
+       ,NULL  SS_UPPERREQ
+       ,NULL  SS_SUPPMY
+       ,A.REM
+       ,NULL  TR_PYMNY_CHA
+	   ,B.DMD_NO
+	   ,B.DMD_ACPT_NO
+	           ,   B.PT_NO                                  PT_NO                              -- 환자번호
+        ,B.PT_NM                                         	PT_NM                               -- 환자명
+        ,   B.MED_YM                                      MED_YM                              -- 진료년월
+        ,B.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   B.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   B.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   B.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+FROM
+        (
+         SELECT   '3'                                            GUBUN
+              ,   A.DSCR_DGR_NO                                  SR_NUM
+              ,   A.DMD_UNCL_DRT_AMT_TP_CD                       RCPFLG
+              ,   XCOM.FT_CCC_CODENAME('BIL065',A.DMD_UNCL_DRT_AMT_TP_CD)
+                                                                 RCPFLGNM
+              ,   TO_CHAR(A.PAY_DT,'YYYY-MM-DD')                 RCPDATE
+              ,   A.RLPY_AMT                                       RCPAMT
+              ,   A.DSCR_DGR_NO                                  RCP_SR_NUM
+              ,   A.RMK_CNTE                                     REM
+              ,   A.UNCL_INAM_SEQ                            SEQNO
+              ,   B.DMD_NO                                       DMD_NO
+              ,   B.DMD_ACPT_NO                                  DMD_ACPT_NO
+                      ,   B.PT_NO                                         PT_NO                              -- 환자번호
+        ,   B.PT_NM                                      	PT_NM                               -- 환자명
+        ,   B.MED_YM                                        MED_YM                              -- 진료년월
+        ,   B.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   B.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   B.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   B.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+           FROM  AIMIPURD A
+           		,  AIMIPBAM B
+          WHERE  A.DMD_ACPT_NO          = :IN_DMD_ACPT_NO
+            AND  A.DMD_NO    = :IN_DMD_NO
+            AND  A.DMD_NO    = B.DMD_NO(+)
+            AND  A.DMD_ACPT_NO  = B.DMD_ACPT_NO(+)
+            AND  A.DSCR_DGR_NO = '0'
+            AND  NVL(A.IRD_YN,'N') = 'N'
+         ) A ,
+         (
+        SELECT
+                 '1'                                                      GUBUN
+              ,  TO_CHAR(A.DMD_ACPT_DT,'YYYY-MM-DD')                 AP_DTE
+              ,  A.SCRG_DMD_NOC                            DMD_CNT
+              ,  A.SCRG_ABDN_AMT + A.SCRG_PYAC_AMT + A.SCRG_SEPAD_DMD_AMT     INPMY
+              ,  NVL(A.SCRG_PBDN_HGLM_AMT,0)                  UPPERREQ
+              ,  NVL(A.SCRG_RRNS_HGLM_DFAMT_SUP_AMT,0)                  SUPPMY_H
+              ,  NVL(A.SCRG_TB_HGLM_DFAMT_SUP_AMT,0)           			 SUPPMY_L
+              ,  A.DMD_NO                                              DMD_NO
+              ,  A.DMD_ACPT_NO                                         DMD_ACPT_NO
+                      ,   B.PT_NO                                         PT_NO                              -- 환자번호
+        ,   B.PT_NM                                      	PT_NM                               -- 환자명
+        ,   B.MED_YM                                        MED_YM                              -- 진료년월
+        ,   B.HIRA_MTFL_CD                                  HIRA_MTFL_CD                        -- 심평원진료분야코드
+        ,   B.PME_CLS_CD                                    PME_CLS_CD                          -- 환자급종유형코드
+        ,   B.HIRA_MED_SBJT_CD                              HIRA_MED_SBJT_CD                    -- 심평원진료과목코드
+        ,   B.DTST_SEQ                                      DTST_SEQ                            -- 명일련번호 / 명세서순번
+           FROM  AIMIPRQS A
+              ,  AIMIPBAM B
+          WHERE  A.DMD_ACPT_NO = :IN_DMD_ACPT_NO
+            AND  A.DMD_NO      = :IN_DMD_NO
+            AND  B.DMD_NO(+)      = A.DMD_NO
+            AND  A.DMD_ACPT_NO = B.DMD_ACPT_NO
+
+         ) B
+WHERE 1=1
+
+ORDER BY 1,5,2,3,4
+
+    ) AA
+) WHERE SEQ = 1
+
+
+
+
